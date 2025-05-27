@@ -9,35 +9,41 @@
       html {
         height: 100%;
         margin: 0;
-        overflow: hidden; /* 스크롤바 제거 */
+        /* overflow: hidden; 스크롤바 제거 -> 스크롤을 위해 주석 처리 또는 삭제 */
         display: flex;
         justify-content: center;
-        align-items: center;
+        /* align-items: center; -> 컨테이너가 자체적으로 정렬 및 스크롤을 관리하도록 제거 */
         background-color: #f0f0f0; /* 배경색 추가 */
       }
       #pdf-viewer-container {
-        width: 100%;
-        height: 100%;
-        display: flex;
-        justify-content: center;
-        align-items: center;
+        width: 90%; /* 페이지 컨텐츠 너비 조정 */
+        max-width: 1000px; /* 너무 넓어지지 않도록 최대 너비 설정 */
+        height: 100%; /* 뷰포트 전체 높이 사용 */
+        overflow-y: auto; /* 수직 스크롤 활성화 */
+        display: flex; /* 자식 요소(페이지 캔버스) 정렬을 위해 flex 사용 */
+        flex-direction: column; /* 페이지들을 세로로 쌓음 */
+        align-items: center; /* 페이지들을 가로 중앙에 정렬 */
+        padding: 20px 0; /* 위아래 패딩 추가 */
+        box-sizing: border-box; /* 패딩과 테두리가 너비/높이에 포함되도록 설정 */
       }
-      #pdf-canvas {
-        border: 1px solid black;
-        max-width: 100%; /* 캔버스 최대 너비 설정 */
-        max-height: 100%; /* 캔버스 최대 높이 설정 */
-        object-fit: contain; /* 비율 유지하며 컨테이너에 맞춤 */
+      /* 기존 #pdf-canvas 스타일은 동적 생성되는 캔버스에 적용하기 위해 .pdf-page-canvas 로 변경 */
+      .pdf-page-canvas {
+        border: 1px solid #ccc; /* 테두리를 약간 연하게 변경 */
+        margin-bottom: 20px; /* 페이지 간의 간격 추가 */
+        max-width: 100%; /* 캔버스가 컨테이너 너비를 넘지 않도록 설정 */
+        display: block; /* 캔버스가 블록 요소처럼 동작하도록 설정 */
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* 부드러운 그림자 효과 추가 */
       }
     </style>
   </head>
   <body>
     <div id="pdf-viewer-container">
-      <canvas id="pdf-canvas"></canvas>
+      <!-- 정적 <canvas id="pdf-canvas"></canvas> 는 스크립트에서 동적으로 페이지별 캔버스를 생성하므로 삭제합니다. -->
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js"></script>
     <script>
-      const url = "./캡스톤디자인ENG-250419-수정본.pdf"; // 표시할 PDF 파일 경로
+      const url = "캡스톤디자인ENG-250419-수정본.pdf"; // 표시할 PDF 파일 경로
 
       // PDF.js 워커 경로 설정
       pdfjsLib.GlobalWorkerOptions.workerSrc =
@@ -45,36 +51,46 @@
 
       const loadingTask = pdfjsLib.getDocument(url);
       loadingTask.promise.then(
-        function (pdf) {
+        async function (pdf) {
+          // 비동기 처리를 위해 async 함수로 변경
           console.log("PDF 로드 성공");
+          const viewerContainer = document.getElementById(
+            "pdf-viewer-container"
+          );
+          viewerContainer.innerHTML = ""; // 기존에 혹시 있었을지 모르는 내용을 비웁니다.
 
-          // 첫 번째 페이지 가져오기
-          pdf.getPage(1).then(function (page) {
-            console.log("페이지 로드 성공");
+          const numPages = pdf.numPages;
+          const scale = 1.5; // PDF 표시 배율 (원하는 크기로 조절 가능)
 
-            const scale = 1.5; // PDF 표시 배율
-            const viewport = page.getViewport({ scale: scale });
+          for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+            try {
+              const page = await pdf.getPage(pageNum); // 각 페이지를 순차적으로 가져오기 위해 await 사용
+              console.log(`페이지 ${pageNum} 로드 성공`);
 
-            // Canvas 준비
-            const canvas = document.getElementById("pdf-canvas");
-            const context = canvas.getContext("2d");
-            canvas.height = viewport.height;
-            canvas.width = viewport.width;
+              const viewport = page.getViewport({ scale: scale });
 
-            // Canvas에 페이지 렌더링
-            const renderContext = {
-              canvasContext: context,
-              viewport: viewport,
-            };
-            const renderTask = page.render(renderContext);
-            renderTask.promise.then(function () {
-              console.log("페이지 렌더링 성공");
-            });
-          });
+              const canvas = document.createElement("canvas");
+              canvas.className = "pdf-page-canvas"; // 스타일 적용을 위한 클래스 추가
+              const context = canvas.getContext("2d");
+              canvas.height = viewport.height;
+              canvas.width = viewport.width;
+
+              viewerContainer.appendChild(canvas); // 생성된 캔버스를 컨테이너에 추가
+
+              const renderContext = {
+                canvasContext: context,
+                viewport: viewport,
+              };
+              await page.render(renderContext).promise; // 페이지 렌더링이 완료될 때까지 기다림
+              console.log(`페이지 ${pageNum} 렌더링 성공`);
+            } catch (reason) {
+              console.error(`페이지 ${pageNum} 처리 중 오류:`, reason);
+            }
+          }
         },
         function (reason) {
           // PDF 로드 실패
-          console.error(reason);
+          console.error("PDF 로드 실패:", reason);
         }
       );
     </script>
