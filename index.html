@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PDF 뷰어</title>
+    <style>
+      body,
+      html {
+        height: 100%;
+        margin: 0;
+        overflow: hidden; /* 스크롤바 제거 */
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background-color: #f0f0f0; /* 배경색 추가 */
+      }
+      #pdf-viewer-container {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+      #pdf-canvas {
+        border: 1px solid black;
+        max-width: 100%; /* 캔버스 최대 너비 설정 */
+        max-height: 100%; /* 캔버스 최대 높이 설정 */
+        object-fit: contain; /* 비율 유지하며 컨테이너에 맞춤 */
+      }
+    </style>
+  </head>
+  <body>
+    <div id="pdf-viewer-container">
+      <canvas id="pdf-canvas"></canvas>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js"></script>
+    <script>
+      const url = "./캡스톤디자인ENG-250419-수정본.pdf"; // 표시할 PDF 파일 경로
+
+      // PDF.js 워커 경로 설정
+      pdfjsLib.GlobalWorkerOptions.workerSrc =
+        "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.worker.min.js";
+
+      const loadingTask = pdfjsLib.getDocument(url);
+      loadingTask.promise.then(
+        function (pdf) {
+          console.log("PDF 로드 성공");
+
+          // 첫 번째 페이지 가져오기
+          pdf.getPage(1).then(function (page) {
+            console.log("페이지 로드 성공");
+
+            const scale = 1.5; // PDF 표시 배율
+            const viewport = page.getViewport({ scale: scale });
+
+            // Canvas 준비
+            const canvas = document.getElementById("pdf-canvas");
+            const context = canvas.getContext("2d");
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+
+            // Canvas에 페이지 렌더링
+            const renderContext = {
+              canvasContext: context,
+              viewport: viewport,
+            };
+            const renderTask = page.render(renderContext);
+            renderTask.promise.then(function () {
+              console.log("페이지 렌더링 성공");
+            });
+          });
+        },
+        function (reason) {
+          // PDF 로드 실패
+          console.error(reason);
+        }
+      );
+    </script>
+  </body>
+</html>
